@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Removing Confirm - Markdown Native Blog</title>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="base.css">
+<style type="text/css">
+body {
+    margin: 0;
+    padding: 40px;
+    -webkit-transition: all 1s;
+}
+#wrapper {
+    max-width: 640px;
+    margin: 0 auto;
+}
+h1 sub,
+h2 sub {
+    float: right;
+}
+h2 sub {
+    margin-right: 1em;
+}
+
+body.confirm {
+    background: #990000;
+    color: white;
+}
+body.confirm a {
+    color: yellow;
+}
+body.confirm h1 {
+    border-color: black;
+}
+
+[data-group] {
+    display: none;
+}
+</style>
+</head>
+<body class="confirm">
+
+<div id="wrapper">
+
+<h1><a href="./#" id="main-title">Markdown Blog</a> <sub>Confirm!</sub></h1>
+
+<h2>REMOVING CONFIRM!</h2>
+<p data-group="loading">
+    Loading, please wait a while ...
+</p>
+<p data-group="confirm">
+    Are you SURE to remove the article "<span id="title">####</span>"?<br>
+    (if confirmed, you will never find it again.)
+</p>
+<p data-group="success">
+    SUCCESS: The article has removed.
+</p>
+<p data-group="error">
+    ERROR: The article not found.
+</p>
+
+<h3 data-group="confirm"><a href="#confirm" id="confirm">OK</a></h3>
+
+<h4 data-group="loading"><a href="./#">Return Markdown Blog</a></h4>
+<h4 data-group="confirm"><a href="./#" id="cancel">CANCEL &amp; return Markdown Blog</a></h4>
+<h4 data-group="success"><a href="./#">Return Markdown Blog</a></h4>
+<h4 data-group="error"><a href="./#">Return Markdown Blog</a></h4>
+
+</div>
+
+<script type="text/javascript" src="storage.js"></script>
+<script type="text/javascript" src="jqmini.js"></script>
+<script type="text/javascript">
+var hash = location.hash;
+var datetime = getIdByHash(hash);
+
+
+var groupList = $('[data-group]');
+
+
+function getIdByHash(hash) {
+    var match = hash.match(/^\#(\d+)$/);
+    if (match) {
+        return match[1];
+    }
+    else {
+        return '';
+    }
+}
+function change(status) {
+    $each(groupList, function (dom) {
+        var group = dom.dataset.group;
+        if (group == status) {
+            dom.style.display = 'block';
+        }
+        else {
+            dom.style.display = 'none';
+        }
+    });
+    if (status == 'confirm') {
+        document.body.classList.add('confirm');
+    }
+    else {
+        document.body.classList.remove('confirm');
+    }
+}
+
+function hoverToggle(dom, className, isReverse) {
+    var classList = document.body.classList;
+    if (isReverse) {
+        dom.onmouseover = function () {classList.remove(className);};
+        dom.onmouseout = function () {classList.add(className);};
+    }
+    else {
+        dom.onmouseover = function () {classList.add(className);};
+        dom.onmouseout = function () {classList.remove(className);};
+    }
+}
+
+
+change('loading');
+
+var store = new Store(function () {
+    if (datetime) {
+        store.getByDate({max: datetime, min: datetime}, 1, function (rows) {
+            var row = rows[0];
+            if (row) {
+                change('confirm');
+                $1('#title').textContent = row.title || '[No title]';
+                $1('#confirm').onclick = function () {
+                    store.remove(row.id, function () {
+                        change('success');
+                    });
+                };
+            }
+            else {
+                change('error');
+            }
+        });
+    }
+    else {
+        change('error');
+    }
+});
+
+
+hoverToggle($1('#main-title'), 'confirm', true);
+hoverToggle($1('#cancel'), 'confirm', true);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Markdown Native Blog</title>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="base.css">
+<style type="text/css">
+body {
+    margin: 0;
+    padding: 40px;
+    -webkit-transition: all 1s;
+}
+#wrapper {
+    max-width: 640px;
+    margin: 0 auto;
+}
+h1 sub,
+h2 sub {
+    float: right;
+}
+h2 sub {
+    margin-right: 1em;
+}
+
+body.confirm {
+    background: #990000;
+    color: white;
+}
+body.confirm a {
+    color: yellow;
+}
+body.confirm h1 {
+    border-color: black;
+}
+body.confirm .content {
+    background: #f0f0f0;
+    color: #333;
+    opacity: 0.2;
+}
+body.confirm #pagination a.current {
+    background: #966;
+}
+
+body.post {
+    background: #006699;
+    color: #f0f0f0;
+}
+body.post a {
+    color: white;
+}
+body.post h1 {
+    border-color: black;
+}
+body.post .content {
+    background: #f0f0f0;
+    color: #333;
+    opacity: 0.2;
+}
+body.post #pagination a.current {
+    color: white;
+    background: #669;
+}
+
+#pagination {
+}
+.info {
+    border-top: 8px gray solid;
+    text-align: right;
+    padding: 0.75em 0;
+}
+#pagination a,
+.info a {
+    padding: 0.5em;
+    border-radius: 5px;
+}
+#pagination a {
+    margin-right: 5px;
+}
+#pagination a.current {
+    background: green;
+    color: yellow;
+    font-weight: bold;
+}
+
+.content {
+    border-radius: 3px;
+    padding: 0.25em 0;
+    margin: 0 0 0.5em;
+}
+</style>
+</head>
+<body>
+
+<div id="wrapper">
+
+<h1><a href="./#" id="main-title">Markdown Blog</a>
+    <sub><a href="post.html" id="post">write</a></sub></h1>
+
+<div id="output"></div>
+
+<div id="pagination"></div>
+
+</div>
+
+<script type="text/javascript" src="markdown.js"></script>
+<script type="text/javascript" src="storage.js"></script>
+<script type="text/javascript" src="jqmini.js"></script>
+<script type="text/javascript">
+var REG_EXP_MAP = {
+    date: /^\#(\d{4}|)(\d{2}|)(\d{2}|)(\d{6}|)(\-(\d+)|)$/,
+    str: /^\#([^\d][^\-]*)(\-(\d+)|)$/
+};
+var PAGE_UNIT = 5;
+
+
+var hash = location.hash || '#';
+var config = {};
+var output = $1('#output');
+var pagination = $1('#pagination');
+
+function hoverToggle(dom, className, isReverse) {
+    var classList = document.body.classList;
+    if (isReverse) {
+        dom.onmouseover = function () {classList.remove(className);};
+        dom.onmouseout = function () {classList.add(className);};
+    }
+    else {
+        dom.onmouseover = function () {classList.add(className);};
+        dom.onmouseout = function () {classList.remove(className);};
+    }
+}
+
+
+var store = new Store(init);
+
+
+function init() {
+    config = {};
+    parseHash(hash, config);
+
+    var range = {};
+
+    if (!config.page) {
+        config.mode = 'default';
+        config.page = '1';
+
+        store.getByDate(range, config.page, showList);
+    }
+    else if (config.title) {
+        config.mode = 'title';
+
+        store.getByStr(config.title, config.page, showList);
+    }
+    else if (config.time) {
+        config.mode = 'entry';
+
+        range.min = range.max =
+                config.year + config.month + config.day + config.time;
+
+        store.getByDate(range, config.page, showList);
+    }
+    else if (config.day) {
+        config.mode = 'day';
+
+        range.min = range.max = config.year + config.month + config.day;
+        range.min += '000000';
+        range.max += '240000';
+
+        store.getByDate(range, config.page, showList);
+    }
+    else if (config.month) {
+        config.mode = 'month';
+
+        range.min = range.max = config.year + config.month;
+        range.min += '00000000';
+        range.max += '32000000';
+
+        store.getByDate(range, config.page, showList);
+    }
+    else if (config.year) {
+        config.mode = 'year';
+
+        range.min = range.max = config.year;
+        range.min += '0000000000';
+        range.max += '1300000000';
+
+        store.getByDate(range, config.page, showList);
+    }
+    else {
+        config.mode = 'default';
+
+        store.getByDate(range, config.page, showList);
+    }
+}
+
+function parseHash(hash, config) {
+    var result = hash.match(REG_EXP_MAP.date);
+    if (result) {
+        config.year = result[1];
+        config.month = result[2];
+        config.day = result[3];
+        config.time = result[4];
+        config.page = result[6] || '1';
+        config.title = '';
+    }
+    else {
+        result = hash.match(REG_EXP_MAP.str);
+        if (result) {
+            config.title = result[1];
+            config.page = result[3] || '1';
+        }
+    }
+}
+
+
+function showList(rows, pageCount) {
+    output.innerHTML = '';
+    if (rows.length == 0) {
+        output.innerHTML = '<h2>EMPTY!</h2><p>Just no articles here :-(</p>';
+        return;
+    }
+    $each(rows, function (row) {
+        var title = row.title || '[No title]';
+        var contentHTML = markdown.toHTML(row.content || '[No content]');
+
+        var section = $new('section');
+        section.innerHTML = '<h2><a href="#" class="title"></a></h2>' +
+                '<div class="content"></div>' +
+                '<div class="info">' +
+                    '<a href="#" class="edit">Edit</a>' +
+                    '<a href="#" class="remove">Remove</a>' +
+                '</div>';
+
+        var auchor = section.querySelector('.title');
+        auchor.href = auchor.dataset.href = '#' + row.id;
+        auchor.textContent = title;
+        auchor.onclick = function () {
+            hash = this.dataset.href;
+            config.mode = 'entry';
+            config.year = row.id.substr(0, 4);
+            config.month = row.id.substr(4, 2);
+            config.day = row.id.substr(6, 2);
+            config.time = row.id.substr(8, 6);
+            config.page = '1';
+            store.getByDate({max: row.id, min: row.id}, '1', showList);
+        };
+
+        var content = section.querySelector('.content');
+        content.innerHTML = contentHTML;
+
+        var info = section.querySelector('.info');
+        var edit = section.querySelector('.info > .edit');
+        var remove = section.querySelector('.info > .remove');
+
+        edit.href = 'post.html#' + row.id;
+        hoverToggle(edit, 'post');
+
+        remove.href = 'delete.html#' + row.id;
+        hoverToggle(remove, 'confirm');
+
+        output.appendChild(section);
+    });
+    buildPagination(pageCount, config.page);
+}
+
+
+function buildPagination(pageCount, currentPage) {
+    pagination.innerHTML = '';
+    if (!isNaN(pageCount)) {
+        pagination.style.display = 'block';
+        for (var i = 1; i <= pageCount; i++) {
+            var auchor = $new('a');
+            var href = hash.replace(/\-\d+$/, '') + '-' + i;
+            auchor.innerHTML = i;
+            auchor.href = auchor.dataset.href = href;
+            auchor.onclick = function () {
+                hash = this.dataset.href;
+                init();
+            };
+            if (i == currentPage) {
+                auchor.className = 'current';
+            }
+            pagination.appendChild(auchor);
+        }
+    }
+    else {
+        pagination.style.display = 'none';
+    }
+}
+
+$1('#main-title').onclick = function () {
+    hash = '#';
+    init();
+};
+hoverToggle($1('#post'), 'post');
+</script>
+
+</body>
+</html>

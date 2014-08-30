@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Writer - Markdown Native Blog</title>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="base.css">
+<style type="text/css">
+body {
+    margin: 0;
+    padding: 40px;
+    -webkit-transition: all 1s;
+}
+#wrapper {
+    max-width: 640px;
+    margin: 0 auto;
+}
+h1 sub,
+h2 sub {
+    float: right;
+}
+h2 sub {
+    margin-right: 1em;
+}
+
+body.post {
+    background: #006699;
+    color: #f0f0f0;
+}
+body.post a {
+    color: white;
+}
+body.post h1 {
+    border-color: black;
+}
+body.post h2 a:hover {
+    color: black;
+}
+
+#title,
+#input {
+    display: block;
+    border: 1px gray solid;
+    -webkit-box-sizing: border-box;
+    width: 100%;
+    margin-bottom: 1em;
+    padding: 0.5em 0.5em;
+    border-radius: 3px;
+}
+#input {
+    resize: vertical;
+}
+#output {
+    min-height: 1em;
+    color: #333;
+    background: #f0f0f0;
+    border-radius: 3px;
+    padding: 0.25em 0.5em;
+}
+#output-html {
+    min-height: 2em;
+    max-height: 12em;
+    width: 100%;
+    -webkit-box-sizing: border-box;
+    margin-left: 0;
+    color: #333;
+    padding: 2em 0.5em 1em;
+    position: relative;
+    background: #f0f0f0;
+}
+#output-html:before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: #69c;
+    color: white;
+    content: "HTML";
+    padding: 0 1em;
+}
+.hidden {
+    display: none;
+}
+</style>
+</head>
+<body class="post">
+
+<div id="wrapper">
+
+<h1><a href="./#" id="main-title">Markdown Blog</a> <sub>Writer</sub></h1>
+
+<h2>Input<sub><a href="syntax.html" id="syntax" target="_blank">syntax...</a></sub></h2>
+<input id="title">
+<textarea id="input" rows="12" cols="80"></textarea>
+
+<h2>Preview<sub><a href="#html" id="html">html</a></sub></h2>
+<div id="output">_</div>
+<pre id="output-html" class="hidden"></pre>
+
+<h2>Save</h2>
+<h3><a href="#save" id="save" onclick="save()">SAVE</a></h3>
+
+</div>
+
+<script type="text/javascript" src="markdown.js"></script>
+<script type="text/javascript" src="storage.js"></script>
+<script type="text/javascript" src="jqmini.js"></script>
+<script type="text/javascript">
+var input = $1('#input');
+var output = $1('#output');
+
+var timer;
+var visible;
+input.oninput = change;
+input.onkeydown = keydown;
+
+function change(e) {
+    var that = this;
+    var value = that.value;
+    if (timer) {
+        clearTimeout(timer);
+    }
+    timer = setTimeout(function () {
+        var newValue = that.value;
+        if (newValue == value) {
+            var contentHTML = markdown.toHTML(newValue);
+            $1('#output').innerHTML = contentHTML || '_';
+            $1('#output-html').textContent = contentHTML;
+        }
+    }, 1000);
+}
+function keydown(e) {
+    var keyCode = e.keyCode;
+    if (keyCode == 9) {
+        var start = this.selectionStart;
+        var end = this.selectionEnd;
+        var length = Math.floor(end - start);
+        var min = Math.min(start, end);
+        var value = this.value;
+        var regExp = new RegExp('^(.{' + start + '}).{' + length + '}', 'm');
+        var index = min + 4;
+        value = value.replace(regExp, '$1    ');
+        this.value = value;
+        this.selectionStart = this.selectionEnd = index;
+        return false;
+    }
+}
+
+var hash = location.hash;
+var datetime = getIdByHash(hash);
+
+
+function getIdByHash(hash) {
+    var match = hash.match(/^\#(\d+)$/);
+    if (match) {
+        return match[1];
+    }
+    else {
+        return '';
+    }
+}
+
+function hoverToggle(dom, className, isReverse) {
+    var classList = document.body.classList;
+    if (isReverse) {
+        dom.onmouseover = function () {classList.remove(className);};
+        dom.onmouseout = function () {classList.add(className);};
+    }
+    else {
+        dom.onmouseover = function () {classList.add(className);};
+        dom.onmouseout = function () {classList.remove(className);};
+    }
+}
+
+
+var store = new Store(function () {
+    if (datetime) {
+        store.getByDate({max: datetime, min: datetime}, 1, function (rows) {
+            var row = rows[0];
+            var title = row.title;
+            var content = row.content;
+            $1('#title').value = title;
+            $1('#input').value = content;
+            var contentHTML = markdown.toHTML(content);
+            $1('#output').innerHTML = contentHTML || '_';
+            $1('#output-html').textContent = contentHTML;
+        });
+    }
+});
+
+function isEmpty(str) {
+    str = str || '';
+    var result = str.replace(/\n/gm, '').
+            replace(/\r/gm, '').
+            match(/^\s*.{0,4}\s*$/);
+    return !!result;
+}
+function save() {
+    var DATETIME_REX_EXP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$/
+    var title = $1('#title').value;
+    var content = $1('#input').value;
+    if (isEmpty(title) || isEmpty(content)) {
+        alert('Please fill both the title and content "enough" first. :-)');
+        return;
+    }
+    var date = new Date;
+    if (!datetime) {
+        datetime = date.toISOString().replace(DATETIME_REX_EXP, '$1$2$3$4$5$6');
+    }
+    store.put({
+        datetime: datetime,
+        title: title,
+        content: content
+    }, function (insertId) {
+        location.assign('./#');
+    });
+}
+
+hoverToggle($1('#main-title'), 'post', true);
+hoverToggle($1('#syntax'), 'post', true);
+hoverToggle($1('#save'), 'post', true);
+
+$1('#html').onclick = function () {
+    $1('#output').classList.toggle('hidden');
+    $1('#output-html').classList.toggle('hidden');
+    return false;
+}
+</script>
+
+</body>
+</html>
